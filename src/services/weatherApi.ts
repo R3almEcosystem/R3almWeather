@@ -1,21 +1,12 @@
-const getApiKey = () => {
-  // Try to get from localStorage first (user settings)
-  const savedSettings = localStorage.getItem('r3alm-weather-settings');
-  if (savedSettings) {
-    try {
-      const settings = JSON.parse(savedSettings);
-      if (settings.apiKey && settings.apiKey.trim()) {
-        return settings.apiKey.trim();
-      }
-    } catch (error) {
-      console.error('Failed to parse saved settings:', error);
-    }
-  }
-  
-  // Fallback to environment variable
-  return import.meta.env.VITE_OPENWEATHER_API_KEY || '4fe43bcbf16c9bb51b01b8197eaadc02';
-};
+// Secure API key — only from .env.local
+const API_KEY = import.meta.env.VITE_OPENWEATHER_API_KEY;
+
+if (!API_KEY) {
+  console.error('OpenWeatherMap API key is missing! Check VITE_OPENWEATHER_API_KEY in .env.local');
+}
+
 const BASE_URL = 'https://api.openweathermap.org/data/2.5';
+const ONECALL_URL = 'https://api.openweathermap.org/data/3.0/onecall';
 
 export interface WeatherResponse {
   main: {
@@ -29,42 +20,15 @@ export interface WeatherResponse {
     description: string;
     icon: string;
   }>;
-  wind: {
-    speed: number;
-  };
+  wind: { speed: number };
   visibility: number;
   name: string;
-  sys: {
-    country: string;
-  };
+  sys: { country: string };
 }
 
 export interface ForecastResponse {
-  list: Array<{
-    dt: number;
-    main: {
-      temp_max: number;
-      temp_min: number;
-      pressure: number;
-      humidity: number;
-    };
-    weather: Array<{
-      main: string;
-      description: string;
-      icon: string;
-    }>;
-    wind: {
-      speed: number;
-    };
-    clouds: {
-      all: number;
-    };
-    pop?: number;
-  }>;
-  city: {
-    name: string;
-    country: string;
-  };
+  list: Array<any>;
+  city: { name: string; country: string };
 }
 
 export interface WeatherAlert {
@@ -77,150 +41,65 @@ export interface WeatherAlert {
   endTime: string;
 }
 
-export interface OneCallResponse {
-  alerts?: Array<{
-    sender_name: string;
-    event: string;
-    start: number;
-    end: number;
-    description: string;
-    tags: string[];
-  }>;
-}
-
-export const getCurrentWeather = async (location: string): Promise<WeatherResponse> => {
-  const API_KEY = getApiKey();
-  const response = await fetch(
-    `${BASE_URL}/weather?q=${encodeURIComponent(location)}&appid=${API_KEY}&units=metric`
-  );
-  
+const request = async <T>(url: string): Promise<T> => {
+  const response = await fetch(url);
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    console.error('Weather API Error:', response.status, errorData);
-    throw new Error(`Weather data not found for "${location}"`);
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.message || `API request failed: ${response.status}`);
   }
-  
   return response.json();
 };
 
-export const getCurrentWeatherByCoords = async (lat: number, lon: number): Promise<WeatherResponse> => {
-  const API_KEY = getApiKey();
-  const response = await fetch(
-    `${BASE_URL}/weather?lat=${lat}&lon=${lon}&appid=${API_KEY}&units=metric`
-  );
-  
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    console.error('Weather API Error:', response.status, errorData);
-    throw new Error('Weather data not found for your location');
-  }
-  
-  return response.json();
-};
+export const getCurrentWeather = (location: string) =>
+  request<WeatherResponse>(`${BASE_URL}/weather?q=${encodeURIComponent(location)}&appid=${API_KEY}&units=metric`);
 
-export const getForecast = async (location: string): Promise<ForecastResponse> => {
-  const API_KEY = getApiKey();
-  const response = await fetch(
-    `${BASE_URL}/forecast?q=${encodeURIComponent(location)}&appid=${API_KEY}&units=metric`
-  );
-  
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    console.error('Forecast API Error:', response.status, errorData);
-    throw new Error(`Forecast data not found for "${location}"`);
-  }
-  
-  return response.json();
-};
+export const getCurrentWeatherByCoords = (lat: number, lon: number) =>
+  request<WeatherResponse>(`${BASE_URL}/weather?lat=${lat}&lon=${lon}&appid=${API_KEY}&units=metric`);
 
-export const getForecastByCoords = async (lat: number, lon: number): Promise<ForecastResponse> => {
-  const API_KEY = getApiKey();
-  const response = await fetch(
-    `${BASE_URL}/forecast?lat=${lat}&lon=${lon}&appid=${API_KEY}&units=metric`
-  );
+export const getForecast = (location: string) =>
+  request<ForecastResponse>(`${BASE_URL}/forecast?q=${encodeURIComponent(location)}&appid=${API_KEY}&units=metric`);
 
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    console.error('Forecast API Error:', response.status, errorData);
-    throw new Error('Forecast data not found for your location');
-  }
-
-  return response.json();
-};
+export const getForecastByCoords = (lat: number, lon: number) =>
+  request<ForecastResponse>(`${BASE_URL}/forecast?lat=${lat}&lon=${lon}&appid=${API_KEY}&units=metric`);
 
 export const getWeatherAlerts = async (lat: number, lon: number): Promise<WeatherAlert[]> => {
-  const API_KEY = getApiKey();
-
   try {
-    const response = await fetch(
-      `https://api.openweathermap.org/data/3.0/onecall?lat=${lat}&lon=${lon}&exclude=minutely,hourly,daily,current&appid=${API_KEY}`
-    );
+    const data = await request<any>(`${ONECALL_URL}?lat=${lat}&lon=${lon}&exclude=current,minutely,hourly,daily&appid=${API_KEY}`);
 
-    if (!response.ok) {
-      console.warn('Weather alerts API returned non-OK status:', response.status);
-      return [];
-    }
+    if (!data.alerts?.length) return [];
 
-    const data: OneCallResponse = await response.json();
-
-    if (!data.alerts || data.alerts.length === 0) {
-      return [];
-    }
-
-    return data.alerts.map((alert, index) => {
+    return data.alerts.map((alert: any, i: number) => {
       const severity = determineSeverity(alert.event);
       const type = determineAlertType(alert.event);
 
       return {
-        id: `${alert.start}-${index}`,
+        id: `${alert.start}-${i}`,
         type,
         title: alert.event,
         description: alert.description,
         severity,
         startTime: new Date(alert.start * 1000).toLocaleString(),
-        endTime: new Date(alert.end * 1000).toLocaleString()
+        endTime: new Date(alert.end * 1000).toLocaleString(),
       };
     });
   } catch (error) {
-    console.error('Failed to fetch weather alerts:', error);
+    console.warn('Alerts unavailable (possibly not supported in free tier):', error);
     return [];
   }
 };
 
 const determineSeverity = (event: string): 'low' | 'medium' | 'high' | 'extreme' => {
-  const eventLower = event.toLowerCase();
-
-  if (eventLower.includes('extreme') || eventLower.includes('severe') ||
-      eventLower.includes('tornado') || eventLower.includes('hurricane')) {
-    return 'extreme';
-  }
-
-  if (eventLower.includes('warning') || eventLower.includes('storm') ||
-      eventLower.includes('flood')) {
-    return 'high';
-  }
-
-  if (eventLower.includes('watch') || eventLower.includes('advisory')) {
-    return 'medium';
-  }
-
+  const e = event.toLowerCase();
+  if (/(extreme|severe|tornado|hurricane)/.test(e)) return 'extreme';
+  if (/(warning|storm|flood)/.test(e)) return 'high';
+  if (/(watch|advisory)/.test(e)) return 'medium';
   return 'low';
 };
 
 const determineAlertType = (event: string): 'warning' | 'watch' | 'advisory' | 'info' => {
-  const eventLower = event.toLowerCase();
-
-  if (eventLower.includes('warning')) {
-    return 'warning';
-  }
-
-  if (eventLower.includes('watch')) {
-    return 'watch';
-  }
-
-  if (eventLower.includes('advisory')) {
-    return 'advisory';
-  }
-
+  const e = event.toLowerCase();
+  if (e.includes('warning')) return 'warning';
+  if (e.includes('watch')) return 'watch';
+  if (e.includes('advisory')) return 'advisory';
   return 'info';
 };

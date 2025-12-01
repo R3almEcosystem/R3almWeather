@@ -8,7 +8,7 @@ export const getAllLocations = async (): Promise<Location[]> => {
     .order('created_at', { ascending: true });
 
   if (error) {
-    console.error('Error fetching locations:', error);
+    console.error('Error fetching all locations:', error);
     return [];
   }
 
@@ -23,7 +23,7 @@ export const getLocationById = async (id: string): Promise<Location | null> => {
     .maybeSingle();
 
   if (error) {
-    console.error('Error fetching location:', error);
+    console.error('Error fetching location by ID:', error);
     return null;
   }
 
@@ -74,6 +74,7 @@ export const addLocation = async (location: {
       description: location.description,
       lat: location.coordinates.lat,
       lon: location.coordinates.lon,
+      image: `https://source.unsplash.com/featured/800x600/?${encodeURIComponent(location.name)},weather`,
       is_custom: true,
       featured: false
     })
@@ -93,7 +94,7 @@ export const deleteLocation = async (id: string): Promise<boolean> => {
     .from('locations')
     .delete()
     .eq('id', id)
-    .eq('is_custom', true);
+    .eq('is_custom', true); // Safety: only allow deleting custom locations
 
   if (error) {
     console.error('Error deleting location:', error);
