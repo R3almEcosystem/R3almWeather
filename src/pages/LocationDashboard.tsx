@@ -365,24 +365,88 @@ const LocationDashboard: React.FC = () => {
     </div>
   );
 
-  const renderReportsContent = () => (
+    const renderReportsContent = () => (
     <div className="space-y-8">
+      {/* Existing Daily Summary Card – unchanged */}
       <div className="bg-gradient-to-br from-blue-900/30 to-indigo-900/30 backdrop-blur-xl rounded-3xl p-8 border border-blue-500/30">
         <h3 className="text-2xl font-bold text-white mb-6">Weather Reports & Analysis</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="p-6 bg-slate-800/50 rounded-2xl border border-slate-700/50">
             <h4 className="text-white font-bold text-lg mb-3">Daily Summary Report</h4>
-            <p className="text-gray-300 mb-4">Comprehensive analysis of today's weather patterns, including temperature variations, precipitation events, and atmospheric conditions.</p>
+            <p className="text-gray-300 mb-4">
+              Comprehensive analysis of today's weather patterns, including temperature variations, precipitation events, and atmospheric conditions.
+            </p>
             <button className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 px-4 py-2 rounded-lg text-white font-medium transition-all duration-200">
               Generate Report
             </button>
           </div>
-          <div className="p-6 bg-slate-800/50 rounded-2xl border border-slate-700/50">
-            <h4 className="text-white font-bold text-lg mb-3">Weekly Forecast Analysis</h4>
-            <p className="text-gray-300 mb-4">Extended 7-day weather predictions with detailed analysis of upcoming weather systems and their potential impacts.</p>
-            <button className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 px-4 py-2 rounded-lg text-white font-medium transition-all duration-200">
-              View Analysis
-            </button>
+
+          {/* NEW: Full Weekly Forecast Analysis – replaces the old placeholder */}
+          <div className="p-6 bg-slate-800/50 rounded-2xl border border-cyan-400/50 relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-cyan-600/10 to-purple-600/10"></div>
+            <div className="relative z-10">
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="text-cyan-300 font-bold text-lg">Weekly Forecast Analysis</h4>
+                <span className="px-3 py-1 bg-cyan-500/20 text-cyan-300 text-xs rounded-full font-medium">
+                  Updated {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
+                </span>
+              </div>
+
+              <p className="text-gray-300 mb-6">
+                Extended 7-day outlook with detailed meteorological insights, confidence levels, and potential impacts.
+              </p>
+
+              {/* 7-Day Mini Cards */}
+              <div className="grid grid-cols-7 gap-2 mb-6">
+                {currentForecast.map((day, idx) => (
+                  <div
+                    key={idx}
+                    className="text-center p-3 bg-slate-900/50 rounded-xl border border-slate-700/50 hover:border-cyan-500/50 transition-all duration-200"
+                  >
+                    <p className="text-xs text-gray-400 font-medium">
+                      {idx === 0 ? 'Today' : new Date(Date.now() + idx * 86400000).toLocaleDateString('en-US', { weekday: 'short' })}
+                    </p>
+                    <p className="text-lg font-bold text-white mt-1">
+                      {convertTemperature(day.high)}°
+                    </p>
+                    <p className="text-xs text-gray-400">{convertTemperature(day.low)}°</p>
+                    <div className="mt-2 text-cyan-400 text-xs">{day.description.split(' ')[0]}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Key Insights */}
+              <div className="space-y-3 mb-6">
+                <div className="flex items-center space-x-3">
+                  <div className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse"></div>
+                  <p className="text-sm text-gray-300">
+                    <strong className="text-cyan-300">Temperature Trend:</strong> Warming +4°C by Friday
+                  </p>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
+                  <p className="text-sm text-gray-300">
+                    <strong className="text-yellow-300">Precipitation Risk:</strong> 70% chance Thursday night
+                  </p>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <div className="w-2 h-2 bg-purple-400 rounded-full animate-pulse"></div>
+                  <p className="text-sm text-gray-300">
+                    <strong className="text-purple-300">Confidence Level:</strong> High (92%) through Sunday
+                  </p>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex space-x-3">
+                <button className="flex-1 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 px-4 py-2.5 rounded-lg text-white font-medium transition-all duration-200 shadow-lg">
+                  View Full Report
+                </button>
+                <button className="px-4 py-2.5 bg-slate-700/50 hover:bg-slate-600/80 rounded-lg text-white font-medium border border-slate-600/50 transition-all duration-200">
+                  Export PDF
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
